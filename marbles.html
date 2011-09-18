@@ -45,8 +45,9 @@
     var grid;
     var gridWidth = 0;
     var gridHeight = 0;
-    var oldGrids = []
-    var oldNumMarbles = []
+    var oldGrids = [];
+    var oldNumMarbles = [];
+    var oldAnimations = [];
     var time;
     var lx, ly, ux, uy;
     var Marbles = [Blank, Flame, Lance, Pulse, Chasm, Twirl, Force];
@@ -60,11 +61,13 @@
     var drawingState;
     var animated;
     var MAXFRAMES = 12;
+    var REVERSEFRAMES = 6;
     var animations;
     var finished;
     var NONE = 0;
     var CLEAR = 1;
-    var MOVE = 2;
+    var REAPPEAR = 2;
+    var MOVE = 3;
  
     function erase(highlight) {
         gameBuffer.fillStyle = 'rgba(255,255,255,128)';
@@ -83,8 +86,14 @@
         this.animFrame = 0;
         this.animation = NONE;
         this.setSize = function() {
-            if (this.animation == CLEAR)
+            if (this.animation == CLEAR) {
                 return 9*size*(this.animFrame)*(4*MAXFRAMES/3 - this.animFrame)/(8*MAXFRAMES*MAXFRAMES);
+            } else if (this.animation == REAPPEAR) {
+              if (this.animFrame > 0) {
+                return 9*size*(REVERSEFRAMES - this.animFrame)*(REVERSEFRAMES/3 + this.animFrame)/(8*REVERSEFRAMES*REVERSEFRAMES);
+              }
+              return 7*size/16;
+            }
             if ((state == FADEOUT) || (state == FADEIN)) {
                 var animFrame = (state == FADEOUT ? MAXFRAMES - frame : frame);
                 return 9*size*(animFrame)*(4*MAXFRAMES/3 - animFrame)/(8*MAXFRAMES*MAXFRAMES);
@@ -379,6 +388,9 @@
         if ((i >= 0) && (i < cols) && (j >= 0) && (j < rows) && isMovable(marble)) {
             grid[i][j] = marble;
             if (marble != null) {
+                reverse = [MOVE, marble.i, marble.j, i, j];
+                oldAnimations[time].push(reverse);
+
                 marble.i = i;
                 marble.j = j;
                 marble.animation = MOVE;
@@ -398,6 +410,10 @@
                 animations.push(marble);
                 animated = true;
                 numMarbles--;
+
+                reverse = [REAPPEAR, i, j];
+                oldAnimations[time].push(reverse);
+
                 return true;
             }
             return false;
@@ -557,6 +573,7 @@
 
         oldGrids = [];
         oldNumMarbles = [];
+        oldAnimations = [];
         time = -1;
         saveGrid();
 
@@ -620,6 +637,7 @@
         time++;
         oldGrids[time] = oldGrid;
         oldNumMarbles[time] = numMarbles;
+        oldAnimations[time] = [];
     }
 
     function undo() {
@@ -641,6 +659,24 @@
         animations = [];
         finished = 0;
         numMarbles = oldNumMarbles[time];
+
+        for (var i = 0; i < oldAnimations[time].length; i++) {
+          var reverse = oldAnimations[time][i];
+          var animType = reverse[0];
+          var marble = grid[reverse[1]][reverse[2]];
+
+          if (animType == MOVE) {
+            marble.x = parseInt(lx + (size+1)*reverse[3] + size/2);
+            marble.y = parseInt(ly + (size+1)*reverse[4] + size/2);
+            marble.animation = MOVE;
+            marble.moveFrame = REVERSEFRAMES;
+          } else if (animType == REAPPEAR) {
+            marble.animation = REAPPEAR;
+            marble.animFrame = REVERSEFRAMES;
+          }
+          animated = true;
+        }
+        oldAnimations[time] = [];
 
         redraw();
     }
