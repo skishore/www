@@ -25,6 +25,8 @@
     var cols = selectData[0].length;
     var rows = selectData.length;
 
+    var LEVELSELECTCOLS = cols;
+    var LEVELSELECTROWS = rows;
     var LOCKED = 0;
     var UNLOCKED = 1;
     var CLEARED = 2;
@@ -597,7 +599,7 @@
         for (var k = 0; k < 4; k++) {
             x = level[0] + cw[k][0];
             y = level[1] + cw[k][1];
-            if ((x >= 0 && x < cols && y >= 0 && y < rows) &&
+            if ((x >= 0 && x < LEVELSELECTCOLS && y >= 0 && y < LEVELSELECTROWS) &&
                     (levelState[x][y] == LOCKED))
                 levelState[x][y] = UNLOCKED;
         }
