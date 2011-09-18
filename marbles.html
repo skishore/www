@@ -57,6 +57,7 @@
     var ccw = [[0,-1],[-1,0],[0,1],[1,0]];
  
     var mousePos = [-1, -1];
+    var useShiftClickText = false;
  
     var drawingState;
     var animated;
@@ -81,6 +82,7 @@
         this.x = parseInt(lx + (size+1)*this.i + size/2);
         this.y = parseInt(ly + (size+1)*this.j + size/2);
         this.movable = true;
+        this.shiftclickable = false;
         this.erase = erase;
         this.moveFrame = 0;
         this.animFrame = 0;
@@ -105,7 +107,7 @@
     function isMovable(marble) {
         return (marble == null || marble.movable);
     }
- 
+
     function drawMarbleShaded(marble, r, color, highlight) {
         gameBuffer.fillStyle = '#222';
         gameBuffer.fillEllipse(marble.x-size/16, marble.y+5*size/8, 3*r/4, r/4);
@@ -263,6 +265,7 @@
     function Twirl(i, j) {
         this.Marble = Marble;
         this.Marble(i, j);
+        this.shiftclickable = true;
         this.draw = function() {
             var r = this.setSize();
             drawMarble(this, r, '#00F', '#44F');
@@ -339,6 +342,7 @@
     function Force(i, j) {
         this.Marble = Marble;
         this.Marble(i, j);
+        this.shiftclickable = true;
         this.draw = function() {
             var r = this.setSize();
             drawMarble(this, r, '#0FF', '#44F');
@@ -570,6 +574,7 @@
         animations = [];
         finished = 0;
         mousePos = [-1, -1];
+        useShiftClickText = false;
 
         oldGrids = [];
         oldNumMarbles = [];
@@ -709,16 +714,35 @@
         gameBuffer.font = 'bold ' + TEXTSIZE + 'pt serif';
         gameBuffer.textAlign = 'left';
         gameBuffer.textBaseline = 'top';
-        if (level < 0)
-            gameBuffer.fillText('Select a puzzle', TEXTSIZE, TEXTSIZE);
-        else
-            gameBuffer.fillText('Puzzle ' + level, TEXTSIZE, TEXTSIZE);
+        if (level < 0) {
+          gameBuffer.fillText('Select a puzzle', TEXTSIZE, TEXTSIZE);
+        } else {
+          gameBuffer.fillText('Puzzle ' + level, TEXTSIZE, TEXTSIZE);
+        }
 
         gameBuffer.font = 'bold ' + SMALLTEXTSIZE + 'pt serif';
         gameBuffer.textAlign = 'center';
-        gameBuffer.fillText('Click or shift-click on a marble to use its abilities.', screenWidth/2, screenHeight - 3*SMALLTEXTSIZE - 32);
-        gameBuffer.fillText('Try to clear all the marbles from the grid.', screenWidth/2, screenHeight - 2*SMALLTEXTSIZE - 24);
-        gameBuffer.fillText('Use space to undo a move, R to restart and M to select a puzzle.', screenWidth/2, screenHeight - SMALLTEXTSIZE - 16);
+        if (level < 0) {
+          gameBuffer.fillText('Click on a marble to start a puzzle.', screenWidth/2, screenHeight - SMALLTEXTSIZE - 16);
+        } else {
+          gameBuffer.fillText('Try to clear all the marbles from the grid.', screenWidth/2, screenHeight - 2*SMALLTEXTSIZE - 24);
+          gameBuffer.fillText('Use space to undo a move, R to restart and M to select a puzzle.', screenWidth/2, screenHeight - SMALLTEXTSIZE - 16);
+          drawClickText();
+        }
+    }
+
+    function drawClickText() {
+      gameBuffer.fillStyle = 'white';
+      gameBuffer.fillRect(0, screenHeight - 3*SMALLTEXTSIZE - 32, screenWidth, 3*SMALLTEXTSIZE/2);
+      gameBuffer.font = 'bold ' + SMALLTEXTSIZE + 'pt serif';
+      gameBuffer.textAlign = 'center';
+      if (useShiftClickText) {
+        gameBuffer.fillStyle = 'red';
+        gameBuffer.fillText('Click or shift-click on this marble to use its two abilities.', screenWidth/2, screenHeight - 3*SMALLTEXTSIZE - 32);
+      } else {
+        gameBuffer.fillStyle = 'black';
+        gameBuffer.fillText('Click on a marble to use its ability.', screenWidth/2, screenHeight - 3*SMALLTEXTSIZE - 32);
+      }
     }
  
     function drawLines() {
@@ -751,6 +775,13 @@
                 return;
 
             marble = grid[mousePos[0]][mousePos[1]];
+            if (level >= 0 && !restore) {
+              var isShiftClickable = (marble != null) && marble.shiftclickable;
+              if (isShiftClickable != useShiftClickText) {
+                useShiftClickText = isShiftClickable;
+                drawClickText();
+              }
+            }
             if (marble.animFrame + marble.moveFrame == 0) {
                 if (restore) {
                     gameBuffer.fillStyle = 'white';
