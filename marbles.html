@@ -50,11 +50,12 @@
     var oldAnimations = [];
     var time;
     var lx, ly, ux, uy;
-    var Marbles = [Blank, Flame, Lance, Pulse, Chasm, Twirl, Force];
+    var Marbles = [Blank, Flame, Lance, Pulse, Chasm, Twirl, Force, Mirror];
     var numMarbles;
  
     var cw = [[0,-1],[1,0],[0,1],[-1,0]];
     var ccw = [[0,-1],[-1,0],[0,1],[1,0]];
+    var cwd = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
  
     var mousePos = [-1, -1];
     var useShiftClickText = false;
@@ -106,6 +107,10 @@
 
     function isMovable(marble) {
         return (marble == null || marble.movable);
+    }
+
+    function squareIsMovable(i, j) {
+        return (i >= 0 && i < cols && j >= 0 && j < rows && isMovable(grid[i][j]))
     }
 
     function drawMarbleShaded(marble, r, color, highlight) {
@@ -198,6 +203,32 @@
                 }
             }
             clearGrid(this.i, this.j);
+            saveGrid();
+        }
+    }
+
+    function Mirror(i, j) {
+        this.Marble = Marble
+        this.Marble(i, j);
+        this.draw = function() {
+            var r = this.setSize();
+            drawMarble(this, r, '#000');
+            drawOverlay(this, r)
+        }
+        this.click = function(shift) {
+            for (var k = 0; k < 4; k++){
+                x1 = this.i + cwd[k][0];
+                y1 = this.j + cwd[k][1];
+                x2 = this.i - cwd[k][0];
+                y2 = this.j - cwd[k][1];
+                if (squareIsMovable(x1, y1) && squareIsMovable(x2, y2)){
+                    marble1 = grid[x1][y1];
+                    marble2 = grid[x2][y2];
+                    setGrid(x1, y1, marble2);
+                    setGrid(x2, y2, marble1);
+                }
+                clearGrid(this.i, this.j);
+            }
             saveGrid();
         }
     }
