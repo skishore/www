@@ -1,0 +1,692 @@
+<html> 
+<head> 
+<script type="text/javascript" src="jquery.js"></script>
+<script type="text/javascript" src="twist/wordlist.js"></script>
+<script>
+    var numWords = wordlist.length;
+    var curWords = [];
+    var found = [];
+    var numTyped = 0;
+    var score = 0;
+    var info = ''
+    var cheats = 0;
+    var cheated = false;
+
+    var gameDiv, gameBuffer;
+    var screenWidth = 512;
+    var screenHeight = 384;
+    var boardWidth = 512;
+    var boardHeight = 256;
+    var MAXSIZE = 64;
+    var size = MAXSIZE;
+    var TEXTSIZE = 16;
+ 
+    var cols;
+    var rows = 3;
+    var grid;
+    var gridWidth = 0;
+    var gridHeight = 0;
+    var lx, ly, ux, uy;
+ 
+    var mousePos = [-1, -1];
+ 
+    var drawingState;
+    var animated;
+    var MAXFRAMES = 12;
+    var animations;
+    var finished;
+    var NONE = 0;
+    var CLEAR = 1;
+    var MOVE = 2;
+
+    function contains(elt) {
+        for (var i = 0; i < this.length; i++)
+            if (this[i] == elt)
+                return true;
+        return false;
+    }
+
+    function randIndex(max) {
+        var rand = Math.random();
+        if (rand >= 1)
+            rand = 0.99;
+        return Math.floor((max + 1) * rand);
+    }
+
+    function permute(word) {
+        var perm = new Array(word.length);
+        var j;
+
+        for (var i = 0; i < word.length; i++) {
+            j = randIndex(i);
+            if (j < i)
+                perm[i] = perm[j];
+            perm[j] = word.charAt(i);
+        }
+        return perm;
+    }
+ 
+    function erase(highlight) {
+        gameBuffer.fillStyle = 'white';
+            gameBuffer.fillStyle = 'rgba(255,255,255,128)';
+        gameBuffer.fillRect(parseInt(this.x - size/2 + 1),
+                            parseInt(this.y - size/2 + 1), size - 1, size -1 );
+    }
+ 
+    function Letter(i, j, text) {
+        this.i = i;
+        this.j = j;
+        this.last = i;
+        this.lastTyped = -1;
+        this.text = text;
+        this.x = parseInt(lx + (size+1)*this.i + size/2);
+        this.y = parseInt(ly + (size+1)*this.j + size/2);
+        this.movable = true;
+        this.erase = erase;
+        this.moveFrame = 0;
+        this.animFrame = 0;
+        this.animation = NONE;
+
+        this.setSize = function() {
+            if (this.animation == CLEAR)
+                return 7*size*(this.animFrame + 7*MAXFRAMES/8)*(15*MAXFRAMES/8 - this.animFrame)/(30*MAXFRAMES*MAXFRAMES);
+            return 7*size/16;
+        }
+
+        this.draw = function() {
+            var r = this.setSize();
+
+            gameBuffer.strokeStyle = 'black';
+            gameBuffer.fillStyle = 'lightblue';
+            if (cheated)
+                gameBuffer.fillStyle = 'salmon';
+            gameBuffer.lineWidth = r/4;
+            gameBuffer.fillCircle(this.x, this.y, 3*r/4);
+
+            gameBuffer.fillStyle = 'black';
+            gameBuffer.font = 'bold ' + 7*r/8 + 'pt sans-serif';
+            gameBuffer.textAlign = 'center';
+            gameBuffer.textBaseline = 'middle';
+            gameBuffer.fillText(this.text.toUpperCase(), this.x, this.y);
+        }
+
+        this.click = function() {
+            if (this.j == rows - 1)
+                type(this.text);
+        }
+    } 
+
+    function type(text) {
+        if (text != 'z')
+            cheats = 0;
+
+        if (numTyped == cols)
+            return;
+
+        for (var i = 0; i < cols; i++) {
+            if ((grid[i][rows - 1] != null) && (grid[i][rows - 1].text == text)) {
+                setGrid(numTyped, 0, grid[i][rows - 1]);
+                grid[i][rows - 1] = null;
+                numTyped++;
+                cheats = 0;
+                return;
+            }
+        }
+
+        cheats++;
+        if (cheats == 3) {
+            revealWord();
+            cheats = 0;
+        }
+    }
+
+    function backspace() {
+        cheats = 0;
+ 
+        if (numTyped == 0) 
+            return;
+
+        setGrid(grid[numTyped - 1][0].last, rows - 1, grid[numTyped - 1][0]);
+        grid[numTyped - 1][0] = null;
+        numTyped--;
+    }
+
+    function enter() {
+        cheats = 0;
+        var info = '';
+
+        if (numTyped == 0) {
+            for (var i = 0; i < cols; i++) {
+                if (grid[i][rows - 1].lastTyped >= 0) {
+                    setGrid(grid[i][rows - 1].lastTyped, 0, grid[i][rows - 1]);
+                    grid[i][rows - 1] = null;
+                    numTyped++;
+                }
+            }
+            return;
+        }
+
+        if ((numTyped == cols) && (found.length < curWords.length)) {
+            var attempt = "";
+            for (var i = 0; i < numTyped; i++)
+                attempt = attempt + grid[i][0].text;
+            if (!curWords.contains(attempt)) {
+                info = "That's not in the dictionary";
+            } else if (found.contains(attempt)) {
+                info = "You've already guessed that word";
+            } else {
+                found.push(attempt);
+                score++;
+                if (found.length == curWords.length) {
+                    for (var i = 0; i < numTyped; i++)
+                        clearGrid(i, 0);
+                    redraw();
+                    return;
+                }
+            }
+        }
+
+        for (var i = 0; i < cols; i++)
+            if (grid[i][rows - 1] != null)
+                grid[i][rows - 1].lastTyped = -1;
+
+        var j = 0; 
+        for (var i = 0; i < numTyped; i++) {
+            while (grid[j][rows - 1] != null)
+                j++;
+            setGrid(j, rows - 1, grid[i][0]);
+            if (found.length < curWords.length)
+                grid[i][0].lastTyped = i;
+            grid[i][0] = null;
+        }
+        numTyped = 0;
+
+        redraw(info);
+    }
+
+    function twist() {
+        if (numTyped == cols)
+            return;
+
+        var perm = new Array(cols);
+        var index = 0;
+        for (var i = 0; i < cols; i++) {
+            index = randIndex(i);
+            if (index < i)
+                perm[i] = perm[index];
+            perm[index] = i;
+        }
+
+        var letters = new Array(cols);
+        for (var i = 0; i < cols; i++) {
+            letters[i] = grid[i][rows - 1];
+            grid[i][rows - 1] = null;
+        }
+        for (var i = 0; i < numTyped; i++)
+            letters[grid[i][0].last] = grid[i][0];
+
+        for (var i = 0; i < cols; i++) {
+            if (letters[i].j == 0) {
+                letters[i].last = perm[i];
+            } else {
+                setGrid(perm[i], rows - 1, letters[i]);
+            }
+        }
+    }
+
+    function revealWord() {
+        var word = '';
+
+        for (var i = 0; i < curWords.length; i++) {
+            if (!found.contains(curWords[i])) {
+                word = curWords[i];
+                break;
+            }
+        }
+
+        if (word == '')
+            return;
+
+        var letters = [];
+        for (var i = 0; i < cols; i++) {
+            for (var j = 0; j < rows; j++) {
+                if (grid[i][j] != null) {
+                    letters.push(grid[i][j]);
+                    grid[i][j] = null;
+                }
+            }
+        }
+
+        var last;
+        for (var i = 0; i < cols; i++) {
+            for (var j = 0; j < cols; j++) {
+                if ((letters[j] != null) && (letters[j].text == word.charAt(i))) {
+                    setGrid(i, 0, letters[j]);
+                    letters[j] = null;
+                    break;
+                }
+            }
+        }
+
+        numTyped = cols;
+        cheated = true;
+    }
+            
+    function setGrid(i, j, letter) {
+        if ((i >= 0) && (i < cols) && (j >= 0) && (j < rows)) {
+            grid[i][j] = letter;
+            if (letter != null) {
+                if (j == rows - 1)
+                    letter.last = i;
+                letter.i = i;
+                letter.j = j;
+                letter.animation = MOVE;
+                letter.moveFrame = MAXFRAMES;
+                animated = true;
+            }
+        }
+    }
+ 
+    function clearGrid(i ,j) {
+        if ((i >= 0) && (i < cols) && (j >= 0) && (j < rows)) {
+            if (grid[i][j] != null) {
+                var letter = grid[i][j];
+                grid[i][j] = null;
+                letter.animation = CLEAR;
+                letter.animFrame = MAXFRAMES;
+                animations.push(letter);
+                animated = true;
+                return true;
+            }
+            return false;
+        }
+        return true;
+    } 
+ 
+    function load() {
+        initInputs();
+        initVectorGraphics(); 
+        getNextWord();
+        setInterval('draw()', 16);
+    }
+
+    function initInputs() {
+        function getPos(e) {
+            var xOffset = document.body.scrollLeft;
+            if (xOffset == 0) 
+                xOffset = window.pageXOffset;
+            var yOffset = document.body.scrollTop;
+            if (yOffset == 0) 
+                yOffset = window.pageYOffset;
+ 
+            var x = e.clientX + xOffset - gameDiv.offsetLeft;
+            var y = e.clientY + yOffset - gameDiv.offsetTop;
+            var i = parseInt((x - lx)/(size + 1));
+            var j = parseInt((y - ly)/(size + 1));
+            if ((x < lx) || (i >= cols) || (y < ly) || (j >= rows)) {
+                i = -1;
+                j = -1;
+            }
+            return [i, j];
+        }
+        gameDiv = $('#gameBuffer')[0];
+        gameDiv.onmousedown = function(e) {
+            if (!e) e = window.event;
+            e.cancelBubble = true;
+            if (e.stopPropagation) e.stopPropagation();
+ 
+            pos = getPos(e);
+            if (!(pos[0] < 0 || pos[0] >= cols || pos[1] < 0 || pos[1] >= rows))
+                if (grid[pos[0]][pos[1]] != null)
+                    grid[pos[0]][pos[1]].click(e.shiftKey);
+            return false;
+        }
+        gameDiv.onmousemove = function(e) {
+            if (!e) e = window.event;
+            e.cancelBubble = true;
+            if (e.stopPropagation) e.stopPropagation();
+ 
+            newMousePos = getPos(e);
+            if ((newMousePos[0] != mousePos[0]) || (newMousePos[1] != mousePos[1])) {
+                drawMouse(true);
+                mousePos = newMousePos;
+                drawMouse();
+            }
+        }
+        document = $('document')[0];
+        document.onkeydown = function(e) {
+            if (!e) e = window.event;
+            e.cancelBubble = true;
+            if (e.stopPropagation) e.stopPropagation();
+
+            var text = String.fromCharCode(e.keyCode);
+            if ((text >= 'A') && (text <= 'Z')) {
+                type(text.toLowerCase());
+                return true;
+            } else if (e.keyCode == 8) {
+                backspace();
+            } else if (e.keyCode == 13) {
+                enter();
+            } else if (text == ' ') {
+                twist();
+            }
+            return false;
+        }
+    }
+ 
+    function initVectorGraphics() {
+        gameBuffer = gameDiv.getContext('2d');
+        gameBuffer.drawLine = function(x1, y1, x2, y2) {
+            this.beginPath();
+            this.moveTo(x1, y1);
+            this.lineTo(x2, y2);
+            this.stroke();
+            this.closePath();
+        }
+        gameBuffer.fillCircle = function(x, y, r) {
+            this.beginPath();
+            this.arc(x, y, r, 0, 2*Math.PI, true);
+            this.stroke();
+            this.fill();
+            this.closePath();
+        }
+        gameBuffer.clear = function() {
+            gameBuffer.clearRect(0, 0, screenWidth, screenHeight);
+        }
+    }
+ 
+    function getNextWord() {
+        var index = randIndex(numWords);
+        curWords = wordlist[index];
+        curWords.contains = contains;
+        found = [];
+        found.contains = contains;
+        numTyped = 0;
+        info = "";
+
+        data = permute(curWords[0]);
+
+        cols = data.length;
+        set = 0;
+
+        size = Math.min(MAXSIZE, parseInt(boardWidth/(cols+1)),
+                                 parseInt(boardHeight/(rows+1))) - 1;
+        gridWidth = (size+1)*cols - 2;
+        gridHeight = (size+1)*rows - 2;
+ 
+        lx = parseInt((boardWidth - gridWidth)/2);
+        ly = parseInt(7*(screenHeight - gridHeight)/16);
+        ux = lx + gridWidth;
+        uy = ly + gridHeight;
+
+        grid = new Array(cols);
+        drawingState = new Array(cols);
+        for (var i = 0; i < cols; i++) {
+            grid[i] = new Array(rows);
+            drawingState[i] = new Array(rows);
+            if (data[i] != 0) {
+                grid[i][rows - 1] = new Letter(i, rows - 1, data[i]);
+            }
+        }
+        animated = false;
+        animations = [];
+        finished = 0;
+
+        redraw();
+    }
+
+    function redraw(info) {
+        gameBuffer.clear();
+        drawLines();
+        drawAllLetters();
+        drawAnimations(animations);
+        drawMouse();
+        drawGUI(info);
+    }
+ 
+    function drawAllLetters() {
+        for (var i = 0; i < cols; i++) {
+            for (var j = 0; j < rows; j++) {
+                if (grid[i][j] != null)
+                    grid[i][j].draw();
+            }
+        }
+    }
+ 
+    function draw() {
+        var letters = 0;
+        for (var i = 0; i < cols; i++) {
+            if (grid[i][0] != null)
+                letters++;
+            if (grid[i][rows - 1] != null)
+                letters++;
+        }
+        if ((found.length < curWords.length) && (letters < cols))
+            console.debug("Lost a letter?");
+
+        if (!animated) {
+            if (found.length == curWords.length)
+                getNextWord();
+            return;
+        }
+ 
+        data = eraseAnimations();
+        var curAnimations = data[0];
+        var overlaps = data[1];
+ 
+        if (animations.length + curAnimations.length - finished > 0) {
+            for (var i = 0; i < cols; i++)
+                for (var j = 0; j < rows; j++)
+                    drawingState[i][j] = 0;
+            for (var i = 0; i < overlaps.length; i++)
+                drawingState[overlaps[i].i][overlaps[i].j] = 1;
+            for (var i = 0; i < curAnimations.length; i++)
+                drawingState[curAnimations[i].i][curAnimations[i].j] = 2;
+ 
+            curAnimations = [];
+            overlaps = [];
+            for (var i = 0; i < cols; i++) {
+                for (var j = 0; j < rows; j++) {
+                    if (drawingState[i][j] == 1)
+                        overlaps.push(grid[i][j]);
+                    else if (drawingState[i][j] == 2)
+                        curAnimations.push(grid[i][j]);
+                }
+            }
+ 
+            drawLines();
+            drawOverlaps(overlaps);
+            drawMouse();
+            drawInfo();
+            drawAnimations(curAnimations);
+        } else {
+            animated = false;
+        }
+    }
+ 
+ 
+    function eraseAnimations() {
+        var curAnimations = [];
+        var overlaps = [];
+        var letter;
+ 
+        for (var i = 0; i < cols; i++) {
+            for (var j = 0; j < rows; j++) {
+                if (grid[i][j] != null) {
+                    letter = grid[i][j];
+                    if (letter.moveFrame + letter.animFrame > 0) {
+                        curAnimations.push(letter);
+                        appendOverlaps(letter, overlaps);
+                        letter.erase();
+                    }
+                }
+            }
+        }
+        for (var i = finished; i < animations.length; i++) {
+            appendOverlaps(animations[i], overlaps);
+            animations[i].erase();
+        }
+        return [curAnimations, overlaps];
+    }
+ 
+    function appendOverlaps(letter, overlaps) {
+        var x, y, i, j;
+ 
+        x = parseInt(letter.x - size/2 + 1 - lx);
+        y = parseInt(letter.y - size/2 + 1 - ly);
+        i = parseInt(x/(size + 1));
+        j = parseInt(y/(size + 1));
+        x = x%(size +  1);
+        y = y%(size +  1);
+ 
+        if ((x < MAXSIZE - 1) && (i >= 0)) {
+            if ((y < MAXSIZE - 1) && (j >= 0) && (grid[i][j] != null))
+                    overlaps.push(grid[i][j]);
+            if ((y > 1) && (j < rows - 1) && (grid[i][j + 1] != null))
+                    overlaps.push(grid[i][j + 1]);
+        }
+        if ((x > 1) && (i < cols - 1)) {
+            if ((y < MAXSIZE - 1) && (j >= 0) && (grid[i + 1][j] != null))
+                    overlaps.push(grid[i + 1][j]);
+            if ((y > 1) && (j < rows - 1) && (grid[i + 1][j + 1] != null))
+                    overlaps.push(grid[i + 1][j + 1]);
+        }
+    }
+ 
+    function drawLines() {
+        gameBuffer.strokeStyle = 'black';
+        gameBuffer.lineWidth = 2;
+
+        var x = lx + size;
+        var my = ly + size + 1;
+        for (var i = 1; i < cols; i++) {
+            gameBuffer.drawLine(x, ly, x, my);
+            x += size +  1;
+        }
+
+        x = lx + size;
+        my = uy - size - 1;
+        for (var i = 1; i < cols; i++) {
+            gameBuffer.drawLine(x, my, x, uy);
+            x += size +  1;
+        }
+    }
+ 
+    function drawOverlaps(overlaps) {
+        for (var i = 0; i < overlaps.length; i++) {
+            overlaps[i].draw();
+        }
+    }
+ 
+    function drawMouse(restore) {
+        if ((mousePos[0] >= 0) && (grid[mousePos[0]][mousePos[1]] != null)) {
+            letter = grid[mousePos[0]][mousePos[1]];
+            if (letter.animFrame + letter.moveFrame == 0) {
+                letter.draw();
+                if (!restore) {
+                    gameBuffer.fillStyle = 'rgba(255,255,255,0.24)';
+                    gameBuffer.fillRect(parseInt(lx + (size+1)*mousePos[0]),
+                                        parseInt(ly + (size+1)*mousePos[1]), size - 1, size -1 );
+                }
+            }
+        }
+    }
+ 
+    function drawAnimations(curAnimations) {
+        var frame, targetX, targetY;
+ 
+        for (var i = 0; i < curAnimations.length; i++)
+            drawAnimation(curAnimations[i], false);
+        for (var i = finished; i < animations.length; i++)
+            drawAnimation(animations[i], true);
+    }
+ 
+    function drawAnimation(letter, isOutside) {
+        if (letter.moveFrame > 0) {
+            frame = letter.moveFrame;
+            targetX = lx + (size+1)*letter.i + size/2;
+            targetY = ly + (size+1)*letter.j + size/2;
+ 
+            letter.x = parseInt(((frame-1)*letter.x + targetX)/frame);
+            letter.y = parseInt(((frame-1)*letter.y + targetY)/frame);
+            letter.moveFrame--;
+        }
+ 
+        if (letter.animFrame > 0)
+            letter.animFrame--;
+        
+        letter.draw();
+ 
+        if (letter.animFrame == 0) {
+            if (isOutside) {
+                letter.moveFrame = 0;
+                finished++;
+            } else if (letter.moveFrame == 0) {
+                letter.animation = NONE;
+            }
+        }
+    }
+
+    function drawGUI(newInfo) {
+        gameBuffer.fillStyle = 'black';
+        gameBuffer.font = 'bold ' + TEXTSIZE + 'pt sans-serif';
+        gameBuffer.textAlign = 'left';
+        gameBuffer.textBaseline = 'top';
+        gameBuffer.fillText('Score: ' + score, TEXTSIZE, TEXTSIZE);
+
+        if (newInfo)
+            info = newInfo;
+            
+        if (info != '') { 
+            gameBuffer.textAlign = 'center';
+            gameBuffer.textBaseline = 'middle';
+            gameBuffer.fillText(info, screenWidth/2, ly + 3*(size + 1)/2);
+            gameBuffer.textAlign = 'left';
+            gameBuffer.textBaseline = 'top';
+        }
+
+        var numRows = Math.floor((curWords.length + 1)/2);
+        var x;
+        var y = screenHeight - 2*(numRows + 1)*TEXTSIZE;
+        for (var i = 0; i < curWords.length; i++) {
+            if (i%2 == 0) {
+                x = TEXTSIZE;
+                y += 2*TEXTSIZE;
+            } else {
+                x += screenWidth/2;
+            }
+            if (i < found.length) {
+                gameBuffer.fillText(found[i], x, y);
+            } else {
+                gameBuffer.fillText('?', x, y);
+            }
+        }
+    }
+
+    function drawInfo() {
+        gameBuffer.fillStyle = 'black';
+        gameBuffer.font = 'bold ' + TEXTSIZE + 'pt sans-serif';
+        gameBuffer.textAlign = 'center';
+        gameBuffer.textBaseline = 'middle';
+        gameBuffer.fillText(info, screenWidth/2, ly + 3*(size + 1)/2);
+    }
+</script> 
+</head> 
+ 
+<body onload="load();"> 
+<style> 
+    canvas#gameBuffer {
+        border: 1px dotted #bbb;
+    }
+</style> 
+ 
+<center> 
+    <canvas id="gameBuffer" width=512 height=384> 
+        <p>YOU YOU ARE NOT USING A BROWSER THAT SUPPORTS THE
+        <a href="http://www.w3.org/html/wg/html5/">HTML5</a> 
+        &lt;canvas&gt; FEATURE.</p> 
+    </canvas>
+</center> 
+ 
+</body> 
+</html> 

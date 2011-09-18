@@ -1,0 +1,894 @@
+<html> 
+<head> 
+<script type="text/javascript" src="jquery.js"></script> 
+<script type="text/javascript" src="marblesdata.js"></script> 
+<script> 
+    var gameDiv, gameBuffer;
+    var screenWidth = 512;
+    var screenHeight = 512;
+
+    var gameWidth = 512;
+    var gameHeight = 384;
+ 
+    var MAXSIZE = 64;
+    var size = MAXSIZE;
+    var TEXTSIZE = 20;
+    var SMALLTEXTSIZE = 12;
+
+    var PLAYING = 0;
+    var FADEOUT = 1;
+    var FADEIN = 2;
+    var SELECT = 3;
+    var state = PLAYING;
+    var frame;
+
+    var cols = selectData[0].length;
+    var rows = selectData.length;
+
+    var LOCKED = 0;
+    var UNLOCKED = 1;
+    var CLEARED = 2;
+    var levelState = new Array(cols);
+    for (var i = 0; i < cols; i++) {
+        levelState[i] = new Array(rows);
+        for (var j = 0; j < rows; j++)
+            levelState[i][j] = LOCKED;
+    }
+    for (var i = 0; i < start.length; i++)
+        levelState[start[i][0]][start[i][1]] = UNLOCKED;
+    var level = -1;
+    var source = [-1, -1];
+    var BLANK = 1;
+
+    var grid;
+    var gridWidth = 0;
+    var gridHeight = 0;
+    var oldGrids = []
+    var oldNumMarbles = []
+    var time;
+    var lx, ly, ux, uy;
+    var Marbles = [Blank, Flame, Lance, Pulse, Chasm, Twirl, Force];
+    var numMarbles;
+ 
+    var cw = [[0,-1],[1,0],[0,1],[-1,0]];
+    var ccw = [[0,-1],[-1,0],[0,1],[1,0]];
+ 
+    var mousePos = [-1, -1];
+ 
+    var drawingState;
+    var animated;
+    var MAXFRAMES = 12;
+    var animations;
+    var finished;
+    var NONE = 0;
+    var CLEAR = 1;
+    var MOVE = 2;
+ 
+    function erase(highlight) {
+        gameBuffer.fillStyle = 'rgba(255,255,255,128)';
+        gameBuffer.fillRect(parseInt(this.x - size/2 + 1),
+                            parseInt(this.y - size/2 + 1), size - 1, size -1 );
+    }
+ 
+    function Marble(i, j) {
+        this.i = i;
+        this.j = j;
+        this.x = parseInt(lx + (size+1)*this.i + size/2);
+        this.y = parseInt(ly + (size+1)*this.j + size/2);
+        this.movable = true;
+        this.erase = erase;
+        this.moveFrame = 0;
+        this.animFrame = 0;
+        this.animation = NONE;
+        this.setSize = function() {
+            if (this.animation == CLEAR)
+                return 9*size*(this.animFrame)*(4*MAXFRAMES/3 - this.animFrame)/(8*MAXFRAMES*MAXFRAMES);
+            if ((state == FADEOUT) || (state == FADEIN)) {
+                var animFrame = (state == FADEOUT ? MAXFRAMES - frame : frame);
+                return 9*size*(animFrame)*(4*MAXFRAMES/3 - animFrame)/(8*MAXFRAMES*MAXFRAMES);
+            }
+            return 7*size/16;
+        }
+    } 
+
+    function isMovable(marble) {
+        return (marble == null || marble.movable);
+    }
+ 
+    function drawMarbleShaded(marble, r, color, highlight) {
+        gameBuffer.fillStyle = '#222';
+        gameBuffer.fillEllipse(marble.x-size/16, marble.y+5*size/8, 3*r/4, r/4);
+ 
+        gameBuffer.strokeStyle = 'black';
+        gameBuffer.fillStyle = color;
+        gameBuffer.lineWidth = 1;
+        gameBuffer.fillCircle(marble.x, marble.y, 3*r/4);
+ 
+        gameBuffer.fillStyle = highlight;
+        gameBuffer.fillEllipse(marble.x+3*r/16, marble.y-r/4, r/4, 3*r/16);
+    }
+ 
+    function drawMarble(marble, r, color) {
+        gameBuffer.strokeStyle = 'black';
+        gameBuffer.fillStyle = color;
+        gameBuffer.lineWidth = 2*r/7;
+        gameBuffer.fillCircle(marble.x, marble.y, 5*r/7); 
+    }
+
+    function drawOverlay(marble, r) {
+        if ((level < 0) && (levelState[marble.i][marble.j] != UNLOCKED)) {
+            if (levelState[marble.i][marble.j] == LOCKED) {
+                gameBuffer.fillStyle = 'black';
+                gameBuffer.font = 'bold ' + 7*r/8 + 'pt sans-serif';
+                gameBuffer.textAlign = 'center';
+                gameBuffer.textBaseline = 'middle';
+                gameBuffer.fillText('?', parseInt(lx + (size+1)*marble.i + size/2),
+                                    parseInt(ly + (size+1)*marble.j + size/2));
+                gameBuffer.fillStyle = 'rgba(255,255,255,0.72)';
+            } else {
+                gameBuffer.fillStyle = 'rgba(255,255,255,0.36)';
+            }
+            gameBuffer.fillRect(parseInt(lx + (size+1)*marble.i),
+                                parseInt(ly + (size+1)*marble.j), size - 1, size - 1);
+        }
+    }
+ 
+    function Blank(i, j) {
+        this.Marble = Marble;
+        this.Marble(i, j);
+        this.draw = function() {
+            var r = this.setSize();
+            drawMarble(this, r, '#777');
+            drawOverlay(this, r);
+        }
+        this.click = function(shift) {};
+    }
+ 
+    function Flame(i, j) {
+        this.Marble = Marble;
+        this.Marble(i, j);
+        this.draw = function() {
+            var r = this.setSize();
+            drawMarble(this, r, '#F00');
+            gameBuffer.fillStyle = 'yellow';
+            gameBuffer.fillRect(this.x - r/3, this.y - r/3, 2*r/3, 2*r/3);
+            drawOverlay(this, r);
+        }
+        this.click = function(shift) {
+            for (var i = -1; i < 2; i++)
+                for (var j = -1; j < 2; j++)
+                    clearGrid(this.i + i, this.j + j);
+            saveGrid();
+        }
+    }
+
+    function Lance(i, j) {
+        this.Marble = Marble;
+        this.Marble(i, j);
+        this.draw = function() {
+            var r = this.setSize();
+            drawMarble(this, r, '#F40');
+            gameBuffer.fillStyle = '#FF4';
+            gameBuffer.fillRect(this.x - r/2, this.y - r/8, r,  r/4);
+            gameBuffer.fillRect(this.x - r/8, this.y - r/2, r/4,  r);
+            drawOverlay(this, r);
+        }
+        this.click = function(shift) { 
+            for (var k = 0; k < 4; k++) {
+                var dx = cw[k][0];
+                var dy = cw[k][1];
+                var i = this.i + dx;
+                var j = this.j + dy;
+                while (!clearGrid(i, j)) {
+                    i += dx;
+                    j += dy;
+                }
+            }
+            clearGrid(this.i, this.j);
+            saveGrid();
+        }
+    }
+
+    function Pulse(i, j) {
+        this.Marble = Marble;
+        this.Marble(i, j);
+        this.draw = function() {
+            var r = this.setSize();
+            drawMarble(this, r, '#0F0');
+            drawOverlay(this, r);
+        }
+        this.click = function(shift) {
+            for (var k = 0; k < 4; k++)
+                tryPush(this.i + cw[k][0], this.j + cw[k][1], cw[k][0], cw[k][1], -1, -1);
+            clearGrid(this.i, this.j);
+            saveGrid();
+        }
+    }
+
+    function Chasm(i, j) {
+        this.Marble = Marble;
+        this.Marble(i, j);
+        this.draw = function() {
+            var r = this.setSize();
+            drawMarble(this, r, '#FF0');
+            drawOverlay(this, r);
+        }
+        this.click = function(shift) {
+            for (var k = 0; k < 4; k++) {
+                i = this.i;
+                j = this.j;
+                while (i >= 0 && i < cols && j >= 0 && j < rows) {
+                    i += cw[k][0];
+                    j += cw[k][1];
+                }
+                i -= cw[k][0];
+                j -= cw[k][1];
+                tryPush(i, j, -cw[k][0], -cw[k][1], this.i, this.j);
+            }
+            clearGrid(this.i, this.j);
+            saveGrid();
+        }
+    }
+    
+    function tryPush(i, j, di, dj, avoidi, avoidj) {
+        if (i < 0 || i >= cols || j < 0 || j >= rows) 
+            return false;
+        if (i == avoidi && j == avoidj)
+            return false;
+
+        var changed = tryPush(i + di, j + dj, di, dj, avoidi, avoidj);
+        if (i + di >= 0 && i + di < cols && j + dj >= 0 && j + dj < rows) {
+            if (grid[i + di][j + dj] == null) {
+                setGrid(i + di, j + dj, grid[i][j])
+                if (grid[i][j] != null) {
+                    grid[i][j] = null;
+                    return true;
+                }
+            }
+        }
+        return changed;
+    }
+ 
+    function Twirl(i, j) {
+        this.Marble = Marble;
+        this.Marble(i, j);
+        this.draw = function() {
+            var r = this.setSize();
+            drawMarble(this, r, '#00F', '#44F');
+            gameBuffer.fillStyle = 'teal';
+            gameBuffer.beginPath();
+            gameBuffer.moveTo(1, 1);
+            gameBuffer.arcTo(1, 1, r/2, r/4, 2);
+            gameBuffer.fill();
+            gameBuffer.closePath();
+            drawOverlay(this, r);
+        }
+        this.click = function(shift) {
+            adj = shift ? cw : ccw;
+            var foundHoleOrBlock = false;
+            var changed = false;
+            var first = -1;
+ 
+            for (var k = 0; (k < 4) && (k > first); k++) {
+                var i = this.i + adj[k][0];
+                var j = this.j + adj[k][1];
+                if ((i >= 0) && (i < cols) && (j >= 0) && (j < rows)) {
+                    if (grid[i][j] == null) {
+                        foundHoleOrBlock = true;
+                        if (first == -1)
+                            first = k;
+                        var k2 = (k + 1)%4;
+ 
+                        while (k2 != first) {
+                            var newI = this.i + adj[k2][0]; 
+                            var newJ = this.j + adj[k2][1]; 
+                            if ((newI >= 0) && (newI < cols) && (newJ >= 0) && (newJ < rows)) {
+                                if (grid[newI][newJ] != null)
+                                    changed = true;
+                                setGrid(i, j, grid[newI][newJ]);
+                                setGrid(newI, newJ, null);
+                            } else {
+                                k = k2;
+                                break;
+                            }
+                            k2 = (k2 + 1)%4;
+                            i = newI;
+                            j = newJ;
+                        }
+                        if (k2 == first) {
+                            if (changed)
+                                saveGrid();
+                            return;
+                        }
+                    }
+                } else {
+                    foundHoleOrBlock = true;
+                }
+            }
+ 
+            if (!foundHoleOrBlock) {
+                var oldMarble = grid[this.i + adj[0][0]][this.j+adj[0][1]];
+                var newMarble;
+                for (var k = 3; k >= 0; k--) {
+                    if (oldMarble != null)
+                        changed = true;
+                    var i = this.i + adj[k][0];
+                    var j = this.j + adj[k][1];
+                    newMarble = grid[i][j];
+                    setGrid(i, j, oldMarble);
+                    oldMarble = newMarble;
+                }
+            }
+
+            if (changed)
+                saveGrid();
+        }
+    }
+
+    function Force(i, j) {
+        this.Marble = Marble;
+        this.Marble(i, j);
+        this.draw = function() {
+            var r = this.setSize();
+            drawMarble(this, r, '#0FF', '#44F');
+            drawOverlay(this, r);
+        }
+        this.click = function(shift) {
+            var changed = false;
+
+            if (shift) {
+                for (var k = 0; k < 4; k++) {
+                    i = this.i;
+                    j = this.j;
+                    while (i >= 0 && i < cols && j >= 0 && j < rows) {
+                        i += cw[k][0];
+                        j += cw[k][1];
+                    }
+                    i -= cw[k][0];
+                    j -= cw[k][1];
+                    if (tryPush(i, j, -cw[k][0], -cw[k][1], this.i, this.j))
+                        changed = true;
+                }
+            } else {
+                for (var k = 0; k < 4; k++)
+                    if (tryPush(this.i + cw[k][0], this.j + cw[k][1], cw[k][0], cw[k][1], -1, -1))
+                        changed = true;
+            }
+
+            if (changed)
+                saveGrid();
+        }
+    }
+
+    function Block(i, j) {
+        this.Marble = Marble;
+        this.Marble(i, j);
+        this.draw = function() {
+            var r = this.setSize();
+            drawMarble(this, r, '#FFF');
+            gameBuffer.fillStyle = 'black';
+            gameBuffer.fillRect(this.x - 7*r/8, this.y - 7*r/8, 7*r/4, 7*r/4);
+        }
+        this.movable = false;
+        this.click = function(shift) {};
+    }
+
+    function setGrid(i, j, marble) {
+        if ((i >= 0) && (i < cols) && (j >= 0) && (j < rows) && isMovable(marble)) {
+            grid[i][j] = marble;
+            if (marble != null) {
+                marble.i = i;
+                marble.j = j;
+                marble.animation = MOVE;
+                marble.moveFrame = MAXFRAMES;
+                animated = true;
+            }
+        }
+    }
+ 
+    function clearGrid(i ,j) {
+        if ((i >= 0) && (i < cols) && (j >= 0) && (j < rows) && isMovable(grid[i][j])) {
+            if (grid[i][j] != null) {
+                var marble = grid[i][j];
+                grid[i][j] = null;
+                marble.animation = CLEAR;
+                marble.animFrame = MAXFRAMES;
+                animations.push(marble);
+                animated = true;
+                numMarbles--;
+                return true;
+            }
+            return false;
+        }
+        return true;
+    }
+ 
+    function GetMarble(type, i, j) {
+        this.Marble = Marbles[type];
+        this.Marble(i, j);
+        this.type = type;
+    }
+ 
+    function load() {
+        initInputs();
+        initVectorGraphics();
+        initGrid();
+        setInterval("draw()", 16);
+    }
+
+    function initInputs() {
+        function getPos(e) {
+            var xOffset = document.body.scrollLeft;
+            if (xOffset == 0) 
+                xOffset = window.pageXOffset;
+            var yOffset = document.body.scrollTop;
+            if (yOffset == 0) 
+                yOffset = window.pageYOffset;
+ 
+            var x = e.clientX + xOffset - gameDiv.offsetLeft;
+            var y = e.clientY + yOffset - gameDiv.offsetTop;
+            var i = parseInt((x - lx)/(size + 1));
+            var j = parseInt((y - ly)/(size + 1));
+            if ((x < lx) || (i >= cols) || (y < ly) || (j >= rows)) {
+                i = -1;
+                j = -1;
+            }
+            return [i, j];
+        }
+        gameDiv = $('#gameBuffer')[0];
+        gameDiv.onmousedown = function(e) {
+            if (!e) e = window.event;
+            e.cancelBubble = true;
+            if (e.stopPropagation) e.stopPropagation();
+
+            if (state == PLAYING) {
+                pos = getPos(e);
+                if (!(pos[0] < 0 || pos[0] >= cols || pos[1] < 0 || pos[1] >= rows))
+                    if (level < 0) {
+                        if (levelState[pos[0]][pos[1]] != LOCKED) {
+                            source = [pos[0], pos[1]];
+                            fadeOut();
+                        }
+                    } else if (grid[pos[0]][pos[1]] != null) {
+                        grid[pos[0]][pos[1]].click(e.shiftKey);
+                    }
+            }
+            return false;
+        }
+        gameDiv.onmousemove = function(e) {
+            if (!e) e = window.event;
+            e.cancelBubble = true;
+            if (e.stopPropagation) e.stopPropagation();
+ 
+            newMousePos = getPos(e);
+            if ((newMousePos[0] != mousePos[0]) || (newMousePos[1] != mousePos[1])) {
+                drawMouse(true);
+                mousePos = newMousePos;
+                drawMouse();
+            }
+        }
+        document = $('document')[0];
+        document.onkeydown = function(e) {
+            if (!e) e = window.event;
+            e.cancelBubble = true;
+            if (e.stopPropagation) e.stopPropagation();
+
+            var char = String.fromCharCode(e.keyCode);
+            if ((state == PLAYING) && (level >= 0)) {
+                if (char == 'R')
+                    fadeOut();
+                else if (char == 'M') {
+                    source = [-1, -1];
+                    fadeOut();
+                } else if ((char == ' ') || (char == 'U'))
+                    undo();
+            }
+            return (char == ' ' ? false : true);
+        }
+    }
+ 
+    function initVectorGraphics() {
+        gameBuffer = gameDiv.getContext("2d");
+        gameBuffer.drawLine = function(x1, y1, x2, y2) {
+            this.beginPath();
+            this.moveTo(x1, y1);
+            this.lineTo(x2, y2);
+            this.stroke();
+            this.closePath();
+        }
+        gameBuffer.fillCircle = function(x, y, r) {
+            this.beginPath();
+            this.arc(x, y, r, 0, 2*Math.PI, true);
+            this.stroke();
+            this.fill();
+            this.closePath();
+        }
+        gameBuffer.clear = function() {
+            gameBuffer.clearRect(0, 0, screenWidth, screenHeight);
+        }
+    }
+
+    function fadeOut() {
+        state = FADEOUT;
+        frame = 0;
+    }
+ 
+    function initGrid(fadeIn) {
+        if (level < 0) {
+            loadPuzzleSelect();
+        } else {
+            data = levelData[level];
+            cols = data[0].length;
+            rows = data.length;
+        }
+
+        size = Math.min(MAXSIZE, parseInt(gameWidth/(cols+1)),
+                                 parseInt(gameHeight/(rows+1))) - 1;
+        gridWidth = (size+1)*cols - 2;
+        gridHeight = (size+1)*rows - 2;
+ 
+        lx = parseInt((screenWidth - gridWidth)/2);
+        ly = parseInt((screenHeight - gridHeight)/2);
+        ux = lx + gridWidth;
+        uy = ly + gridHeight;
+
+        numMarbles = 0;
+
+        grid = new Array(cols);
+        drawingState = new Array(cols);
+        for (var i = 0; i < cols; i++) {
+            grid[i] = new Array(rows);
+            drawingState[i] = new Array(rows);
+            for (var j = 0; j < rows; j++) {
+                if (data[j][i] == 0) {
+                    grid[i][j] = null;
+                } else {
+                    grid[i][j] = new GetMarble(data[j][i] - 1, i, j);
+                    numMarbles++;
+                }
+            }
+        }
+        animated = false;
+        animations = [];
+        finished = 0;
+        mousePos = [-1, -1];
+
+        oldGrids = [];
+        oldNumMarbles = [];
+        time = -1;
+        saveGrid();
+
+        if (!fadeIn)
+            redraw();
+    }
+
+    function loadPuzzleSelect() {
+        cols = selectData[0].length;
+        rows = selectData.length;
+        data = new Array(rows);
+        for (var i = 0; i < rows; i++) {
+            data[i] = new Array(cols);
+            for (var j = 0; j < cols; j++)
+                data[i][j] = 0;
+        }
+
+        var x, y;
+        for (var i = 0; i < rows; i++)
+            for (var j = 0; j < cols; j++) {
+                if (levelState[j][i] != LOCKED) {
+                    data[i][j] = selectData[i][j];
+                } else if (selectData[i][j] > 0) {
+                    for (var k = 0; k < 4; k++) {
+                        x = i + cw[k][0];
+                        y = j + cw[k][1];
+                        if ((x >= 0 && x < rows && y >= 0 && y < cols) &&
+                                (levelState[y][x] != LOCKED)) {
+                            data[i][j] = BLANK;
+                            break;
+                        }
+                    }
+                }
+            }
+    }
+
+    function clearLevel(level) {
+        var x, y;
+        levelState[level[0]][level[1]] = CLEARED;
+        for (var k = 0; k < 4; k++) {
+            x = level[0] + cw[k][0];
+            y = level[1] + cw[k][1];
+            if ((x >= 0 && x < cols && y >= 0 && y < rows) &&
+                    (levelState[x][y] == LOCKED))
+                levelState[x][y] = UNLOCKED;
+        }
+    }
+
+    function saveGrid() {
+        var oldGrid = new Array(cols);
+        for (var i = 0; i < cols; i++) {
+            oldGrid[i] = new Array(rows);
+            for (var j = 0; j < rows; j++) {
+                if (grid[i][j] == null) {
+                    oldGrid[i][j] = 0;
+                } else {
+                    oldGrid[i][j] = grid[i][j].type + 1;
+                }
+            }
+        }
+        time++;
+        oldGrids[time] = oldGrid;
+        oldNumMarbles[time] = numMarbles;
+    }
+
+    function undo() {
+        if (time == 0)
+            return;
+        time--;
+
+        for (var i = 0; i < cols; i++) {
+            for (var j = 0; j < rows; j++) {
+                if (oldGrids[time][i][j] == 0) {
+                    grid[i][j] = null;
+                } else {
+                    grid[i][j] = new GetMarble(oldGrids[time][i][j] - 1, i, j);
+                }
+                drawingState[i][j] = 0;
+            }
+        }
+        animated = false;
+        animations = [];
+        finished = 0;
+        numMarbles = oldNumMarbles[time];
+
+        redraw();
+    }
+ 
+    function redraw() {
+        gameBuffer.clear();
+        drawText();
+        drawLines();
+        if ((state == PLAYING) || (frame++ < MAXFRAMES)) {
+            drawAllMarbles();
+        } else {
+            transition(); 
+        }
+    }
+
+    function transition() {
+        if (state == FADEOUT) {
+            state = FADEIN;
+            level = (source[0] < 0 ? -1 : levels[source[1]][source[0]]);
+            initGrid(true);
+        } else {
+            state = PLAYING;
+            redraw();
+        }
+        frame = 0;
+    }
+
+    function drawText() {
+        gameBuffer.fillStyle = 'black';
+        gameBuffer.font = 'bold ' + TEXTSIZE + 'pt serif';
+        gameBuffer.textAlign = 'left';
+        gameBuffer.textBaseline = 'top';
+        if (level < 0)
+            gameBuffer.fillText('Select a puzzle', TEXTSIZE, TEXTSIZE);
+        else
+            gameBuffer.fillText('Puzzle ' + level, TEXTSIZE, TEXTSIZE);
+
+        gameBuffer.font = 'bold ' + SMALLTEXTSIZE + 'pt serif';
+        gameBuffer.textAlign = 'center';
+        gameBuffer.fillText('Click or shift-click on a marble to use its abilities.', screenWidth/2, screenHeight - 3*SMALLTEXTSIZE - 32);
+        gameBuffer.fillText('Try to clear all the marbles from the grid.', screenWidth/2, screenHeight - 2*SMALLTEXTSIZE - 24);
+        gameBuffer.fillText('Use space to undo a move, R to restart and M to select a puzzle.', screenWidth/2, screenHeight - SMALLTEXTSIZE - 16);
+    }
+ 
+    function drawLines() {
+        gameBuffer.strokeStyle = 'black';
+        gameBuffer.lineWidth = 2;
+        var x = lx + size;
+        for (var i = 1; i < cols; i++) {
+            gameBuffer.drawLine(x, ly, x, uy);
+            x += size +  1;
+        }
+        var y = ly + size;
+        for (var i = 1; i < rows; i++) {
+            gameBuffer.drawLine(lx, y, ux, y);
+            y += size +  1;
+        }
+    }
+
+    function drawAllMarbles() {
+        for (var i = 0; i < cols; i++) {
+            for (var j = 0; j < rows; j++) {
+                if (grid[i][j] != null)
+                    grid[i][j].draw(); 
+            }
+        }
+    } 
+ 
+    function drawMouse(restore) {
+        if ((mousePos[0] >= 0) && (grid[mousePos[0]][mousePos[1]] != null)) {
+            if ((level < 0) && (levelState[mousePos[0]][mousePos[1]] == LOCKED))
+                return;
+
+            marble = grid[mousePos[0]][mousePos[1]];
+            if (marble.animFrame + marble.moveFrame == 0) {
+                if (restore) {
+                    gameBuffer.fillStyle = 'white';
+                    gameBuffer.fillRect(parseInt(lx + (size+1)*mousePos[0]),
+                                        parseInt(ly + (size+1)*mousePos[1]), size - 1, size - 1);
+                    marble.draw();
+                } else {
+                    var oldSetSize = marble.setSize;
+                    marble.setSize = function() {
+                        return 1.04*oldSetSize();
+                    }
+                    marble.draw();
+                    marble.setSize = oldSetSize;
+                }
+            }
+        }
+    }
+
+    function draw() {
+        if (state != PLAYING) {
+            redraw();
+            return;
+        }
+
+        if (!animated) {
+            if (numMarbles == 0) {
+                clearLevel(source);
+                source = [-1, -1];
+                fadeOut();
+                frame = MAXFRAMES;
+            }
+            return;
+        }
+ 
+        data = eraseAnimations();
+        var curAnimations = data[0];
+        var overlaps = data[1];
+ 
+        if (animations.length + curAnimations.length - finished > 0) {
+            for (var i = 0; i < cols; i++)
+                for (var j = 0; j < rows; j++)
+                    drawingState[i][j] = 0;
+            for (var i = 0; i < overlaps.length; i++)
+                drawingState[overlaps[i].i][overlaps[i].j] = 1;
+            for (var i = 0; i < curAnimations.length; i++)
+                drawingState[curAnimations[i].i][curAnimations[i].j] = 2;
+ 
+            curAnimations = [];
+            overlaps = [];
+            for (var i = 0; i < cols; i++) {
+                for (var j = 0; j < rows; j++) {
+                    if (drawingState[i][j] == 1)
+                        overlaps.push(grid[i][j]);
+                    else if (drawingState[i][j] == 2)
+                        curAnimations.push(grid[i][j]);
+                }
+            }
+ 
+            drawLines();
+            drawOverlaps(overlaps);
+            drawMouse();
+            drawAnimations(curAnimations);
+        } else {
+            animated = false;
+        }
+    }
+ 
+    function eraseAnimations() {
+        var curAnimations = [];
+        var overlaps = [];
+        var marble;
+ 
+        for (var i = 0; i < cols; i++) {
+            for (var j = 0; j < rows; j++) {
+                if (grid[i][j] != null) {
+                    marble = grid[i][j];
+                    if (marble.moveFrame + marble.animFrame > 0) {
+                        curAnimations.push(marble);
+                        appendOverlaps(marble, overlaps);
+                        marble.erase();
+                    }
+                }
+            }
+        }
+        for (var i = finished; i < animations.length; i++) {
+            appendOverlaps(animations[i], overlaps);
+            animations[i].erase();
+        }
+        return [curAnimations, overlaps];
+    }
+ 
+    function appendOverlaps(marble, overlaps) {
+        var x, y, i, j;
+ 
+        x = parseInt(marble.x - size/2 + 1 - lx);
+        y = parseInt(marble.y - size/2 + 1 - ly);
+        i = parseInt(x/(size + 1));
+        j = parseInt(y/(size + 1));
+        x = x%(size +  1);
+        y = y%(size +  1);
+ 
+        if ((x < MAXSIZE - 1) && (i >= 0)) {
+            if ((y < MAXSIZE - 1) && (j >= 0) && (grid[i][j] != null))
+                    overlaps.push(grid[i][j]);
+            if ((y > 1) && (j < rows - 1) && (grid[i][j + 1] != null))
+                    overlaps.push(grid[i][j + 1]);
+        }
+        if ((x > 1) && (i < cols - 1)) {
+            if ((y < MAXSIZE - 1) && (j >= 0) && (grid[i + 1][j] != null))
+                    overlaps.push(grid[i + 1][j]);
+            if ((y > 1) && (j < rows - 1) && (grid[i + 1][j + 1] != null))
+                    overlaps.push(grid[i + 1][j + 1]);
+        }
+    }
+
+    function drawOverlaps(overlaps) {
+        for (var i = 0; i < overlaps.length; i++) {
+            overlaps[i].draw();
+        }
+    }
+ 
+    function drawAnimations(curAnimations) {
+        var frame, targetX, targetY;
+ 
+        for (var i = 0; i < curAnimations.length; i++)
+            drawAnimation(curAnimations[i], false);
+        for (var i = finished; i < animations.length; i++)
+            drawAnimation(animations[i], true);
+    }
+ 
+    function drawAnimation(marble, isOutside) {
+        if (marble.moveFrame > 0) {
+            frame = marble.moveFrame;
+            targetX = lx + (size+1)*marble.i + size/2;
+            targetY = ly + (size+1)*marble.j + size/2;
+ 
+            marble.x = parseInt(((frame-1)*marble.x + targetX)/frame);
+            marble.y = parseInt(((frame-1)*marble.y + targetY)/frame);
+            marble.moveFrame--;
+        }
+ 
+        if (marble.animFrame > 0)
+            marble.animFrame--;
+        
+        marble.draw();
+ 
+        if (marble.animFrame == 0) {
+            if (isOutside) {
+                marble.moveFrame = 0;
+                finished++;
+            } else if (marble.moveFrame == 0) {
+                marble.animation = NONE;
+            }
+        }
+    }
+</script> 
+</head> 
+ 
+<body onload="load();"> 
+<style> 
+    canvas#gameBuffer {
+        border: 1px dotted #bbb;
+    }
+</style> 
+ 
+<center> 
+    <canvas id="gameBuffer" width=512 height=512> 
+        <p>YOU YOU ARE NOT USING A BROWSER THAT SUPPORTS THE
+        <a href="http://www.w3.org/html/wg/html5/">HTML5</a> 
+        &lt;canvas&gt; FEATURE.</p> 
+    </canvas>
+    <!--<p><b>Click</b> on a marble to use its ability. Try to <b>clear all the marbles</b> from the grid. <br>
+       Some marbles have a secondary ability which you can use by 
+       <b>shift clicking</b>. <br>
+       <b>Space</b> will undo a move, and <b>R</b> will reset the puzzle.</p>-->
+</center> 
+ 
+</body> 
+</html> 
