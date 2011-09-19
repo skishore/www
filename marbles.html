@@ -801,18 +801,27 @@
     } 
  
     function drawMouse(restore) {
-        if ((mousePos[0] >= 0) && (grid[mousePos[0]][mousePos[1]] != null)) {
+        if (mousePos[0] < 0) {
+          if (level >= 0 && !restore && isShiftClickable) {
+            useShiftClickText = false;
+            drawClickText();
+          }
+          return;
+        }
+
+        marble = grid[mousePos[0]][mousePos[1]];
+        if (level >= 0 && !restore) {
+          var isShiftClickable = (marble != null) && marble.shiftclickable;
+          if (isShiftClickable != useShiftClickText) {
+            useShiftClickText = isShiftClickable;
+            drawClickText();
+          }
+        }
+
+        if (marble != null) {
             if ((level < 0) && (levelState[mousePos[0]][mousePos[1]] == LOCKED))
                 return;
 
-            marble = grid[mousePos[0]][mousePos[1]];
-            if (level >= 0 && !restore) {
-              var isShiftClickable = (marble != null) && marble.shiftclickable;
-              if (isShiftClickable != useShiftClickText) {
-                useShiftClickText = isShiftClickable;
-                drawClickText();
-              }
-            }
             if (marble.animFrame + marble.moveFrame == 0) {
                 if (restore) {
                     gameBuffer.fillStyle = 'white';
