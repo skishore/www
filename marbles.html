@@ -22,8 +22,8 @@
     var state = PLAYING;
     var frame;
 
-    var cols = selectData[0].length;
-    var rows = selectData.length;
+    var cols = levels[0].length;
+    var rows = levels.length;
 
     var LEVELSELECTCOLS = cols;
     var LEVELSELECTROWS = rows;
@@ -38,7 +38,7 @@
     }
     for (var i = 0; i < start.length; i++)
         levelState[start[i][0]][start[i][1]] = UNLOCKED;
-    var level = -1;
+    var level = null;
     var source = [-1, -1];
     var BLANK = 1;
 
@@ -134,7 +134,7 @@
     }
 
     function drawOverlay(marble, r) {
-        if ((level < 0) && (levelState[marble.i][marble.j] != UNLOCKED)) {
+        if ((level == null) && (levelState[marble.i][marble.j] != UNLOCKED)) {
             if (levelState[marble.i][marble.j] == LOCKED) {
                 gameBuffer.fillStyle = 'black';
                 gameBuffer.font = 'bold ' + 7*r/8 + 'pt sans-serif';
@@ -497,7 +497,7 @@
             if (state == PLAYING) {
                 pos = getPos(e);
                 if (!(pos[0] < 0 || pos[0] >= cols || pos[1] < 0 || pos[1] >= rows))
-                    if (level < 0) {
+                    if (level == null) {
                         if (levelState[pos[0]][pos[1]] != LOCKED) {
                             source = [pos[0], pos[1]];
                             fadeOut();
@@ -527,7 +527,7 @@
             if (e.stopPropagation) e.stopPropagation();
 
             var char = String.fromCharCode(e.keyCode);
-            if ((state == PLAYING) && (level >= 0)) {
+            if ((state == PLAYING) && (level != null)) {
                 if (char == 'R')
                     fadeOut();
                 else if (char == 'M') {
@@ -567,10 +567,10 @@
     }
  
     function initGrid(fadeIn) {
-        if (level < 0) {
+        if (level == null) {
             loadPuzzleSelect();
         } else {
-            data = levelData[level];
+            data = level.data
             cols = data[0].length;
             rows = data.length;
         }
@@ -618,8 +618,8 @@
     }
 
     function loadPuzzleSelect() {
-        cols = selectData[0].length;
-        rows = selectData.length;
+        cols = levels[0].length;
+        rows = levels.length;
         data = new Array(rows);
         for (var i = 0; i < rows; i++) {
             data[i] = new Array(cols);
@@ -630,28 +630,30 @@
         var x, y;
         for (var i = 0; i < rows; i++)
             for (var j = 0; j < cols; j++) {
-                if (levelState[j][i] != LOCKED) {
-                    data[i][j] = selectData[i][j];
-                } else if (selectData[i][j] > 0) {
-                    for (var k = 0; k < 4; k++) {
-                        x = i + cw[k][0];
-                        y = j + cw[k][1];
-                        if ((x >= 0 && x < rows && y >= 0 && y < cols) &&
-                                (levelState[y][x] != LOCKED)) {
-                            data[i][j] = BLANK;
-                            break;
+                if (levels[i][j] != 0) {
+                    if (levelState[j][i] != LOCKED) {
+                        data[i][j] = levels[i][j].icon;
+                    } else {
+                        for (var k = 0; k < 4; k++) {
+                            x = i + cw[k][0];
+                            y = j + cw[k][1];
+                            if ((x >= 0 && x < rows && y >= 0 && y < cols) &&
+                                    (levelState[y][x] != LOCKED)) {
+                                data[i][j] = BLANK;
+                                break;
+                            }
                         }
                     }
                 }
             }
     }
 
-    function clearLevel(level) {
+    function clearLevel(sourcePos) {
         var x, y;
-        levelState[level[0]][level[1]] = CLEARED;
+        levelState[sourcePos[0]][sourcePos[1]] = CLEARED;
         for (var k = 0; k < 4; k++) {
-            x = level[0] + cw[k][0];
-            y = level[1] + cw[k][1];
+            x = sourcePos[0] + cw[k][0];
+            y = sourcePos[1] + cw[k][1];
             if ((x >= 0 && x < LEVELSELECTCOLS && y >= 0 && y < LEVELSELECTROWS) &&
                     (levelState[x][y] == LOCKED))
                 levelState[x][y] = UNLOCKED;
@@ -731,7 +733,7 @@
     function transition() {
         if (state == FADEOUT) {
             state = FADEIN;
-            level = (source[0] < 0 ? -1 : levels[source[1]][source[0]]);
+            level = (source[0] < 0 ? null : levels[source[1]][source[0]]);
             initGrid(true);
         } else {
             state = PLAYING;
@@ -745,15 +747,15 @@
         gameBuffer.font = 'bold ' + TEXTSIZE + 'pt serif';
         gameBuffer.textAlign = 'left';
         gameBuffer.textBaseline = 'top';
-        if (level < 0) {
+        if (level == null) {
           gameBuffer.fillText('Select a puzzle', TEXTSIZE, TEXTSIZE);
         } else {
-          gameBuffer.fillText('Puzzle ' + level, TEXTSIZE, TEXTSIZE);
+          gameBuffer.fillText(level.title, TEXTSIZE, TEXTSIZE);
         }
 
         gameBuffer.font = 'bold ' + SMALLTEXTSIZE + 'pt serif';
         gameBuffer.textAlign = 'center';
-        if (level < 0) {
+        if (level == null) {
           gameBuffer.fillText('Click on a marble to start a puzzle.', screenWidth/2, screenHeight - SMALLTEXTSIZE - 16);
         } else {
           gameBuffer.fillText('Try to clear all the marbles from the grid.', screenWidth/2, screenHeight - 2*SMALLTEXTSIZE - 24);
@@ -802,11 +804,11 @@
  
     function drawMouse(restore) {
         if ((mousePos[0] >= 0) && (grid[mousePos[0]][mousePos[1]] != null)) {
-            if ((level < 0) && (levelState[mousePos[0]][mousePos[1]] == LOCKED))
+            if ((level == null) && (levelState[mousePos[0]][mousePos[1]] == LOCKED))
                 return;
 
             marble = grid[mousePos[0]][mousePos[1]];
-            if (level >= 0 && !restore) {
+            if (level != null && !restore) {
               var isShiftClickable = (marble != null) && marble.shiftclickable;
               if (isShiftClickable != useShiftClickText) {
                 useShiftClickText = isShiftClickable;
