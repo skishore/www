@@ -300,12 +300,6 @@
         this.draw = function() {
             var r = this.setSize();
             drawMarble(this, r, '#00F', '#44F');
-            gameBuffer.fillStyle = 'teal';
-            gameBuffer.beginPath();
-            gameBuffer.moveTo(1, 1);
-            gameBuffer.arcTo(1, 1, r/2, r/4, 2);
-            gameBuffer.fill();
-            gameBuffer.closePath();
             drawOverlay(this, r);
         }
         this.click = function(shift) {
