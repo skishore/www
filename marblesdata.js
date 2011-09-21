@@ -1,9 +1,3 @@
-
-var start = [];
-for (var i = 0; i < 7; i++)
-        for (var j = 0; j < 9; j++)
-                start.push([i,j]);
-
 mirrorIntro = {
     'title': 'Mirror',
     'icon': 8,
@@ -19,7 +13,7 @@ mirrorForce = {
     'title': 'Mirror, Force',
     'icon': 8,
     'data':
-        [[0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [[0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 8, 0, 0, 8, 0, 0], 
         [0, 1, 7, 3, 8, 7, 1, 0],
         [0, 0, 8, 0, 0, 8, 0, 0],
@@ -72,7 +66,7 @@ forceIntro = {
 
 easyTwirl2 = {
     'title': 'Twirl, Chasm, Pulse',
-    'icon':6,
+    'icon':5,
     'data': [
         [0, 0, 4, 0, 1],
         [0, 5, 6, 5, 0],
@@ -176,7 +170,7 @@ flameIntro = {
 
 chasmGap = {
     'title': 'Chasm Gap',
-    'icon':5,
+    'icon':6,
     'data':
    [
     [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
@@ -290,13 +284,10 @@ threebythree = {
 }
 
 var levels =
-   [[mirror,    mirrorForce,0,          0,          0,          0,          0],
-    [twirlMirror, mirrorIntro,          0,          0,          0,          0,          0],
-    [tideForce,         0,          0,          0,          0,          forceSquare,0],
-    [0,         0,          0,          0,          forceIntro, easyTwirl3, 0],
-    [0,         0,          0,          0,          easyTwirl2, chasmGap,   chasmCorridor],
-    [0,         0,          hardTwirl,  twoTwirls,  easyTwirl1, hardChasm,  0],
-    [0,         0,          0,          pulseGap,   twirlIntro, chasmIntro, 0],
-    [0,         0,          0,          hardPulse,  pulseIntro, lanceIntro, flameIntro],
-    [0,         0,          0,          pulseCorridor,0,        0,          0]];
+   [[flameIntro,lanceIntro, chasmIntro, chasmGap,   hardChasm],
+    [pulseIntro,twirlIntro, easyTwirl3, easyTwirl2, chasmCorridor],
+    [hardPulse, easyTwirl1, forceIntro, forceSquare,twoTwirls],
+    [pulseGap,  atrium,     mirrorIntro,hardTwirl,  twirlMirror],
+    [tideForce,threebythree,pulseCorridor,mirrorForce,mirror]];
 
+var start = [[0,0]];
