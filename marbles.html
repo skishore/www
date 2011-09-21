@@ -760,7 +760,7 @@
 
     function drawClickText() {
       gameBuffer.fillStyle = 'white';
-      gameBuffer.fillRect(0, screenHeight - 3*SMALLTEXTSIZE - 32, screenWidth, 3*SMALLTEXTSIZE/2);
+      gameBuffer.fillRect(0, screenHeight - 3*SMALLTEXTSIZE - 36, screenWidth, 3*SMALLTEXTSIZE/2 + 4);
       gameBuffer.font = 'bold ' + SMALLTEXTSIZE + 'pt serif';
       gameBuffer.textAlign = 'center';
       if (useShiftClickText) {
@@ -798,7 +798,7 @@
  
     function drawMouse(restore) {
         if (mousePos[0] < 0) {
-          if (level != null && !restore && isShiftClickable) {
+          if (level != null && !restore && useShiftClickText) {
             useShiftClickText = false;
             drawClickText();
           }
