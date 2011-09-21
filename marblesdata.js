@@ -290,7 +290,4 @@ var levels =
     [pulseGap,  atrium,     mirrorIntro,hardTwirl,  twirlMirror],
     [tideForce,threebythree,pulseCorridor,mirrorForce,mirror]];
 
-var start = [];
-for (var i = 0; i < levels[0].length; i++)
-        for (var j = 0; j < levels.length; j++)
-                start.push([i,j]);
+var start = [[0,0]];
