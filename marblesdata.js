@@ -1,7 +1,32 @@
 
-var start = [[6,7]];
+var start = [];
+for (var i = 0; i < 7; i++)
+        for (var j = 0; j < 9; j++)
+                start.push([i,j]);
 
-test = {
+mirrorIntro = {
+    'title': 'Mirror',
+    'icon': 8,
+    'data':
+        [[0, 1, 0, 0, 0],
+        [1, 0, 0, 0, 8],
+        [0, 0, 0, 8, 0],
+        [0, 3, 1, 0, 0],
+        [0, 0, 8, 0, 0]]
+}
+
+mirrorForce = {
+    'title': 'Mirror, Force',
+    'icon': 8,
+    'data':
+        [[0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 8, 0, 0, 8, 0, 0], 
+        [0, 1, 7, 3, 8, 7, 1, 0],
+        [0, 0, 8, 0, 0, 8, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]]
+}
+
+mirror = {
     'title': 'Mirror',
     'icon' : 8,
     'data': 
@@ -29,7 +54,7 @@ tideForce = {
     'data':
     [[0, 0, 0, 0, 0],
     [0, 7, 0, 0, 0], 
-    [0, 6, 0, 2, 0],
+    [0, 6, 0, 3, 0],
     [0, 7, 0, 0, 0],
     [0, 0, 0, 0, 0]]
 }
@@ -265,13 +290,13 @@ threebythree = {
 }
 
 var levels =
-   [[0,         0,          0,          0,          0,          0,          0],
-    [0,         0,          0,          0,          0,          0,          0],
-    [0,         0,          0,          0,          0,          forceSquare,0],
+   [[mirror,    mirrorForce,0,          0,          0,          0,          0],
+    [twirlMirror, mirrorIntro,          0,          0,          0,          0,          0],
+    [tideForce,         0,          0,          0,          0,          forceSquare,0],
     [0,         0,          0,          0,          forceIntro, easyTwirl3, 0],
     [0,         0,          0,          0,          easyTwirl2, chasmGap,   chasmCorridor],
     [0,         0,          hardTwirl,  twoTwirls,  easyTwirl1, hardChasm,  0],
     [0,         0,          0,          pulseGap,   twirlIntro, chasmIntro, 0],
-    [0,         0,          0,          hardPulse,  pulseIntro, lanceIntro, test],
+    [0,         0,          0,          hardPulse,  pulseIntro, lanceIntro, flameIntro],
     [0,         0,          0,          pulseCorridor,0,        0,          0]];
 
