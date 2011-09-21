@@ -10,7 +10,7 @@ mirrorIntro = {
 }
 
 mirrorForce = {
-    'title': 'Mirror, Force',
+    'title': 'Warped World',
     'icon': 8,
     'data':
         [[0, 0, 0, 0, 0, 0, 0, 0],
@@ -21,7 +21,7 @@ mirrorForce = {
 }
 
 mirror = {
-    'title': 'Mirror',
+    'title': 'On Reflection',
     'icon' : 8,
     'data': 
         [[8, 2, 8, 1, 8],
@@ -32,7 +32,7 @@ mirror = {
 }
 
 twirlMirror = {
-    'title': 'Twirl, Mirror',
+    'title': 'Twisted World',
     'icon' : 8,
     'data':
         [[0, 0, 0, 0, 0, 0, 0],
@@ -43,7 +43,7 @@ twirlMirror = {
 }
 
 tideForce = {
-'title': 'Tide, Force',
+'title': 'Tide',
     'icon':7,
     'data':
     [[0, 0, 0, 0, 0],
@@ -54,7 +54,7 @@ tideForce = {
 }
 
 forceIntro = {
-    'title': 'Force',
+    'title': 'Polar',
     'icon':7,
     'data': [
                 [0, 0, 7, 0],
@@ -65,7 +65,7 @@ forceIntro = {
 }
 
 easyTwirl2 = {
-    'title': 'Twirl, Chasm, Pulse',
+    'title': 'Rainbow',
     'icon':5,
     'data': [
         [0, 0, 4, 0, 1],
@@ -75,7 +75,7 @@ easyTwirl2 = {
 }
 
 easyTwirl1 = {
-   'title': 'Twirl, Pulse',
+   'title': 'Four Square',
    'icon':6,
    'data': [
     [4, 0, 0, 0, 4],
@@ -88,7 +88,7 @@ easyTwirl1 = {
 
 chasmCorridor = {
     'icon':5,
-    'title': 'Chasm Corridor',
+    'title': 'March',
     'data': 
    [
     [5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -98,7 +98,7 @@ chasmCorridor = {
 }
 
 pulseCorridor = {
-    'title': 'Pulse Corridor',
+    'title': 'Longest Journey',
     'icon':4,
     'data':
    [
@@ -110,7 +110,7 @@ pulseCorridor = {
 }
 
 forceSquare = {
-    'title': 'Force Square',
+    'title': 'Puzzle Box',
     'icon':7,
     'data':
    [
@@ -122,7 +122,7 @@ forceSquare = {
 }
  
 twirlIntro = {
-    'title': 'Twirl',
+    'title': 'Twist',
     'icon':6,
     'data':
    [
@@ -133,7 +133,7 @@ twirlIntro = {
 }
 
 pulseIntro = {
-    'title': 'Pulse',
+    'title': 'Source',
     'icon':4,
     'data':
    [
@@ -145,7 +145,7 @@ pulseIntro = {
 }
 
 chasmIntro = {
-    'title': 'Chasm',
+    'title': 'Sink',
     'icon':5,
     'data':
    [
@@ -169,7 +169,7 @@ flameIntro = {
 }
 
 chasmGap = {
-    'title': 'Chasm Gap',
+    'title': 'Union',
     'icon':6,
     'data':
    [
@@ -182,7 +182,7 @@ chasmGap = {
 }
 
 twoTwirls = {
-    'title': 'Twirl Locomotion',
+    'title': 'Locomotion',
     'icon':6,
     'data':
    [[0, 1, 0, 0, 1],
@@ -194,7 +194,7 @@ twoTwirls = {
 }
 
 easyTwirl3 = {
-    'title': 'Two Twirls',
+    'title': 'Tango',
     'icon':6,
    'data': 
    [[1, 0, 1, 1],
@@ -212,7 +212,7 @@ lanceIntro = {
 }
 
 hardPulse = {
-    'title': 'Pulse Grid',
+    'title': 'Potential',
     'icon':4,
     'data':
    [[4, 4, 4, 4, 4],
@@ -223,7 +223,7 @@ hardPulse = {
 }
 
 pulseGap = {
-    'title': 'Pulse Gap',
+    'title': 'Clover',
     'icon':4,
     'data':
    [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -240,7 +240,7 @@ pulseGap = {
 }
 
 hardChasm = {
-    'title': 'Chasm Grid',
+    'title': 'Quicksand',
     'icon':5,
     'data': 
    [[1, 5, 1, 5, 1],
@@ -262,7 +262,7 @@ atrium = {
 }
 
 hardTwirl = {
-    'title': 'Twirl Grid',
+    'title': 'Gridlock',
     'icon':6,
     'data':
   [[0, 1, 0, 3, 0, 1, 0],
@@ -275,7 +275,7 @@ hardTwirl = {
 }
 
 threebythree = {
-    'title': 'Tight Space',
+    'title': 'Cloud Nine',
     'icon':7,
     'data':
    [[0, 3, 0],
@@ -290,4 +290,7 @@ var levels =
     [pulseGap,  atrium,     mirrorIntro,hardTwirl,  twirlMirror],
     [tideForce,threebythree,pulseCorridor,mirrorForce,mirror]];
 
-var start = [[0,0]];
+var start = [];
+for (var i = 0; i < levels[0].length; i++)
+        for (var j = 0; j < levels.length; j++)
+                start.push([i,j]);
