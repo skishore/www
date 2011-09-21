@@ -167,9 +167,9 @@
         this.Marble(i, j);
         this.draw = function() {
             var r = this.setSize();
-            drawMarble(this, r, '#F00');
-            gameBuffer.fillStyle = 'yellow';
-            gameBuffer.fillRect(this.x - r/3, this.y - r/3, 2*r/3, 2*r/3);
+            drawMarble(this, r, '#F44');
+            //gameBuffer.fillStyle = 'yellow';
+            //gameBuffer.fillRect(this.x - r/3, this.y - r/3, 2*r/3, 2*r/3);
             drawOverlay(this, r);
         }
         this.click = function(shift) {
@@ -185,10 +185,10 @@
         this.Marble(i, j);
         this.draw = function() {
             var r = this.setSize();
-            drawMarble(this, r, '#F40');
-            gameBuffer.fillStyle = '#FF4';
-            gameBuffer.fillRect(this.x - r/2, this.y - r/8, r,  r/4);
-            gameBuffer.fillRect(this.x - r/8, this.y - r/2, r/4,  r);
+            drawMarble(this, r, '#F80');
+            //gameBuffer.fillStyle = '#FF4';
+            //gameBuffer.fillRect(this.x - r/2, this.y - r/8, r,  r/4);
+            //gameBuffer.fillRect(this.x - r/8, this.y - r/2, r/4,  r);
             drawOverlay(this, r);
         }
         this.click = function(shift) { 
@@ -212,7 +212,7 @@
         this.Marble(i, j);
         this.draw = function() {
             var r = this.setSize();
-            drawMarble(this, r, '#000');
+            drawMarble(this, r, '#C8C');
             drawOverlay(this, r)
         }
         this.click = function(shift) {
@@ -299,7 +299,7 @@
         this.shiftclickable = true;
         this.draw = function() {
             var r = this.setSize();
-            drawMarble(this, r, '#00F', '#44F');
+            drawMarble(this, r, '#44F', '#44F');
             drawOverlay(this, r);
         }
         this.click = function(shift) {
