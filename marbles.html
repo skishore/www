@@ -77,6 +77,8 @@
     var MOVE = 3;
 
     var EXPIRY = 180;
+    var numZs = 0;
+    var clearLevelState = false;
 
     function setCookie(name, value) {
       var expires = new Date();
@@ -554,6 +556,18 @@
             if (e.stopPropagation) e.stopPropagation();
 
             var char = String.fromCharCode(e.keyCode);
+            if (state == PLAYING) {
+              if (char == 'Z') {
+                numZs++;
+                if (numZs > 2) {
+                  resetLevelMenu(); 
+                  numZs = 0;
+                }
+              } else {
+                numZs = 0;
+              }
+            }
+
             if ((state == PLAYING) && (level != null)) {
                 if (char == 'R')
                     fadeOut();
@@ -565,6 +579,13 @@
             }
             return (char == ' ' ? false : true);
         }
+    }
+
+    function resetLevelMenu() {
+      deleteCookie('levelState');
+      clearLevelState = true;
+      source = [-1, -1];
+      fadeOut();
     }
  
     function initVectorGraphics() {
@@ -762,6 +783,17 @@
         if (state == FADEOUT) {
             state = FADEIN;
             level = (source[0] < 0 ? null : levels[source[1]][source[0]]);
+            if (clearLevelState) {
+              levelState = new Array(LEVELSELECTCOLS);
+              for (var i = 0; i < LEVELSELECTCOLS; i++) {
+                levelState[i] = new Array(LEVELSELECTROWS);
+                for (var j = 0; j < LEVELSELECTROWS; j++)
+                  levelState[i][j] = LOCKED;
+              }
+              for (var i = 0; i < start.length; i++)
+                levelState[start[i][0]][start[i][1]] = UNLOCKED;
+              clearLevelState = false;
+            }
             initGrid(true);
         } else {
             state = PLAYING;
