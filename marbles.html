@@ -36,8 +36,13 @@
         for (var j = 0; j < rows; j++)
             levelState[i][j] = LOCKED;
     }
-    for (var i = 0; i < start.length; i++)
+    levelStateCookie = getCookie('levelState');
+    if (levelStateCookie == null) {
+      for (var i = 0; i < start.length; i++)
         levelState[start[i][0]][start[i][1]] = UNLOCKED;
+    } else {
+      levelState = JSON.parse(levelStateCookie);
+    }
     var level = null;
     var source = [-1, -1];
     var BLANK = 1;
@@ -70,7 +75,35 @@
     var CLEAR = 1;
     var REAPPEAR = 2;
     var MOVE = 3;
- 
+
+    var EXPIRY = 180;
+
+    function setCookie(name, value) {
+      var expires = new Date();
+      expires.setDate(expires.getDate() + EXPIRY);
+      document.cookie = name + "=" + escape(value) + "; path=/" + ((expires == null) ? "" : "; expires=" + expires.toGMTString());
+    }
+
+    function getCookie(name) {
+      var dc = document.cookie;
+      var cname = name + "=";
+
+      if (dc.length > 0) {
+        begin = dc.indexOf(cname);
+        if (begin != -1) {
+          begin += cname.length;
+          end = dc.indexOf(";", begin);
+          if (end == -1) end = dc.length;
+          return unescape(dc.substring(begin, end));
+        }
+      }
+      return null;
+    }
+
+    function deleteCookie(name) {  
+      document.cookie = name + "=; expires=Thu, 01-Jan-70 00:00:01 GMT" + "; path=/"; 
+    }
+
     function erase(highlight) {
         gameBuffer.fillStyle = 'rgba(255,255,255,128)';
         gameBuffer.fillRect(parseInt(this.x - size/2 + 1),
@@ -652,6 +685,7 @@
                     (levelState[x][y] == LOCKED))
                 levelState[x][y] = UNLOCKED;
         }
+        setCookie('levelState', JSON.stringify(levelState));
     }
 
     function saveGrid() {
